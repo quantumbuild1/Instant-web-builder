@@ -1,0 +1,5 @@
+{
+  "name": "Instant Web Builder",
+  "description": "A progressive web app for instantly building and previewing HTML/CSS/JS snippets, with cloud saving via InstantDB.",
+  "requestFramePermissions": []
+}
