@@ -6,12 +6,4 @@ import { init } from '@instantdb/react';
 // Since we don't have a specific App ID, we'll use a placeholder and prompt the user if it fails.
 const APP_ID = import.meta.env.VITE_INSTANTDB_APP_ID || '00000000-0000-0000-0000-000000000000';
 
-type Schema = {
-  snippets: {
-    id: string;
-    code: string;
-    createdAt: number;
-  };
-};
-
-export const db = init<Schema>({ appId: APP_ID });
+export const db = init({ appId: APP_ID });

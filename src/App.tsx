@@ -54,7 +54,7 @@ export default function App() {
 
   useEffect(() => {
     if (data?.snippets && data.snippets.length > 0) {
-      const loadedCode = data.snippets[0].code;
+      const loadedCode = (data.snippets[0] as any).code;
       setCode(loadedCode);
       setPreviewCode(loadedCode);
     }
