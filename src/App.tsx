@@ -3,11 +3,16 @@ import { Play, RotateCcw, Save, Code2, LayoutTemplate, Share2 } from 'lucide-rea
 import { db } from './lib/db';
 import { cn } from './lib/utils';
 
-const DEFAULT_CODE = `<!DOCTYPE html>
-<html>
-<head>
-<style>
-body { font-family: Arial; text-align: center; background: #f0f4f8; padding: 2rem; }
+const DEFAULT_HTML = `<h1>Instant Web Builder</h1>
+<p>Edit HTML, CSS, and JS in the tabs above and click RUN</p>
+<button id="test-btn">Test Button</button>`;
+
+const DEFAULT_CSS = `body { 
+  font-family: Arial; 
+  text-align: center; 
+  background: #f0f4f8; 
+  padding: 2rem; 
+}
 h1 { color: #2563eb; }
 button { 
   padding: 10px 20px; 
@@ -18,22 +23,35 @@ button {
   cursor: pointer;
   font-weight: bold;
 }
-button:hover { background: #1d4ed8; }
-</style>
+button:hover { background: #1d4ed8; }`;
+
+const DEFAULT_JS = `document.getElementById('test-btn').addEventListener('click', () => {
+  alert('Hello from the preview!');
+});`;
+
+const generatePreview = (html: string, css: string, js: string) => {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<style>${css}</style>
 </head>
 <body>
-
-<h1>Instant Web Builder</h1>
-<p>Edit HTML and click RUN</p>
-<button onclick="alert('Hello from the preview!')">Test Button</button>
-
+${html}
+<script>${js}<\/script>
 </body>
 </html>`;
+};
 
 export default function App() {
-  const [code, setCode] = useState(DEFAULT_CODE);
-  const [previewCode, setPreviewCode] = useState(DEFAULT_CODE);
+  const [html, setHtml] = useState(DEFAULT_HTML);
+  const [css, setCss] = useState(DEFAULT_CSS);
+  const [js, setJs] = useState(DEFAULT_JS);
+  
+  const [previewCode, setPreviewCode] = useState(() => generatePreview(DEFAULT_HTML, DEFAULT_CSS, DEFAULT_JS));
+  
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
+  const [activeEditorTab, setActiveEditorTab] = useState<'html' | 'css' | 'js'>('html');
+  
   const [snippetId, setSnippetId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -54,20 +72,34 @@ export default function App() {
 
   useEffect(() => {
     if (data?.snippets && data.snippets.length > 0) {
-      const loadedCode = (data.snippets[0] as any).code;
-      setCode(loadedCode);
-      setPreviewCode(loadedCode);
+      const snippet = data.snippets[0] as any;
+      
+      // Support for new format (split tabs)
+      if (snippet.html !== undefined) {
+        setHtml(snippet.html || '');
+        setCss(snippet.css || '');
+        setJs(snippet.js || '');
+        setPreviewCode(generatePreview(snippet.html || '', snippet.css || '', snippet.js || ''));
+      } else {
+        // Fallback for older snippets that were saved as a single 'code' string
+        setHtml(snippet.code || '');
+        setCss('');
+        setJs('');
+        setPreviewCode(snippet.code || '');
+      }
     }
   }, [data]);
 
   const handleRun = () => {
-    setPreviewCode(code);
+    setPreviewCode(generatePreview(html, css, js));
     setActiveTab('preview');
   };
 
   const handleReset = () => {
-    setCode(DEFAULT_CODE);
-    setPreviewCode(DEFAULT_CODE);
+    setHtml(DEFAULT_HTML);
+    setCss(DEFAULT_CSS);
+    setJs(DEFAULT_JS);
+    setPreviewCode(generatePreview(DEFAULT_HTML, DEFAULT_CSS, DEFAULT_JS));
     setSnippetId(null);
     window.history.replaceState({}, '', window.location.pathname);
   };
@@ -78,7 +110,9 @@ export default function App() {
       const newId = crypto.randomUUID();
       await db.transact([
         db.tx.snippets[newId].update({
-          code,
+          html,
+          css,
+          js,
           createdAt: Date.now(),
         }),
       ]);
@@ -185,16 +219,39 @@ export default function App() {
             activeTab === 'editor' ? "flex" : "hidden"
           )}
         >
-          <div className="px-4 py-2 bg-[#2d2d2d] text-xs font-medium text-gray-400 uppercase tracking-wider flex justify-between items-center shrink-0">
-            <span>index.html</span>
-            {error && <span className="text-red-400 normal-case">DB Error: Check App ID</span>}
+          <div className="flex bg-[#2d2d2d] text-xs font-medium text-gray-400 uppercase tracking-wider shrink-0">
+            <button 
+              onClick={() => setActiveEditorTab('html')}
+              className={cn("px-4 py-2 hover:bg-[#3d3d3d] transition-colors", activeEditorTab === 'html' && "bg-[#1e1e1e] text-emerald-400 border-t-2 border-emerald-400")}
+            >
+              HTML
+            </button>
+            <button 
+              onClick={() => setActiveEditorTab('css')}
+              className={cn("px-4 py-2 hover:bg-[#3d3d3d] transition-colors", activeEditorTab === 'css' && "bg-[#1e1e1e] text-emerald-400 border-t-2 border-emerald-400")}
+            >
+              CSS
+            </button>
+            <button 
+              onClick={() => setActiveEditorTab('js')}
+              className={cn("px-4 py-2 hover:bg-[#3d3d3d] transition-colors", activeEditorTab === 'js' && "bg-[#1e1e1e] text-emerald-400 border-t-2 border-emerald-400")}
+            >
+              JS
+            </button>
+            <div className="flex-1 flex justify-end items-center px-4">
+              {error && <span className="text-red-400 normal-case">DB Error: Check App ID</span>}
+            </div>
           </div>
           <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
+            value={activeEditorTab === 'html' ? html : activeEditorTab === 'css' ? css : js}
+            onChange={(e) => {
+              if (activeEditorTab === 'html') setHtml(e.target.value);
+              else if (activeEditorTab === 'css') setCss(e.target.value);
+              else setJs(e.target.value);
+            }}
             className="flex-1 w-full p-4 bg-transparent text-emerald-400 font-mono text-sm sm:text-base resize-none outline-none focus:ring-0"
             spellCheck="false"
-            placeholder="Write your HTML/CSS/JS here..."
+            placeholder={`Write your ${activeEditorTab.toUpperCase()} here...`}
           />
         </div>
 
